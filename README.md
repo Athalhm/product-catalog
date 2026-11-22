@@ -2,7 +2,7 @@
 
 A responsive product catalog built as a frontend intern mini project. The app fetches products from a public API, displays them as reusable cards, supports product search, and includes a working shopping cart.
 
-**Live demo:** https://YOUR-PROJECT.vercel.app
+**Live demo:** https://product-catalog-seven-xi.vercel.app
 **Repository:** https://github.com/Athalhm/product-catalog.git
 
 ---
