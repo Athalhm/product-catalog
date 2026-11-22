@@ -7,22 +7,16 @@ import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { ProductSkeleton } from "@/components/common/ProductSkeleton";
 import { ProductList } from "@/components/product/ProductList";
 import { SearchBar } from "@/components/product/SearchBar";
-import { filterProductsByName, formatPrice } from "@/lib/utils";
+import { filterProductsByName } from "@/lib/utils";
 
 export function ProductCatalog() {
   const { products, isLoading, error, retry } = useProducts();
-  const { items, addToCart, totalItems, totalPrice } = useCart();
+  const { addToCart } = useCart();
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredProducts = useMemo(
     () => filterProductsByName(products, searchTerm),
     [products, searchTerm]
-  );
-
-  // SEMENTARA, hapus di 4B
-  console.log(
-    "cart:",
-    items.map((item) => `${item.product.title} x${item.quantity}`)
   );
 
   if (isLoading) return <ProductSkeleton />;
@@ -36,11 +30,6 @@ export function ProductCatalog() {
           Showing {filteredProducts.length} of {products.length} products
         </p>
       </div>
-
-      {/* SEMENTARA, hapus di 4B */}
-      <p className="text-sm font-medium">
-        Cart: {totalItems} item, {formatPrice(totalPrice)}
-      </p>
 
       <ProductList products={filteredProducts} onAddToCart={addToCart} />
     </div>
