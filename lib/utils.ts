@@ -1,4 +1,5 @@
 export { cn } from "cn"
+import type { Product } from "@/types/product";
 
 const priceFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -23,4 +24,17 @@ export function getStockStatus(stock: number): StockStatus {
     return { label: `Low Stock (${stock} left)`, variant: "secondary", isAvailable: true };
   }
   return { label: "In Stock", variant: "outline", isAvailable: true };
+}
+
+export function filterProductsByName(
+  products: Product[],
+  searchTerm: string
+): Product[] {
+  const keyword = searchTerm.trim().toLowerCase();
+
+  if (keyword === "") return products;
+
+  return products.filter((product) =>
+    product.title.toLowerCase().includes(keyword)
+  );
 }
