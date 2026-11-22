@@ -2,15 +2,16 @@
 
 import { useMemo, useState } from "react";
 import { useProducts } from "@/hooks/useProducts";
+import { useCart } from "@/context/CartContext";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { ProductSkeleton } from "@/components/common/ProductSkeleton";
 import { ProductList } from "@/components/product/ProductList";
 import { SearchBar } from "@/components/product/SearchBar";
-import { filterProductsByName } from "@/lib/utils";
-import type { Product } from "@/types/product";
+import { filterProductsByName, formatPrice } from "@/lib/utils";
 
 export function ProductCatalog() {
   const { products, isLoading, error, retry } = useProducts();
+  const { items, addToCart, totalItems, totalPrice } = useCart();
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredProducts = useMemo(
@@ -18,9 +19,11 @@ export function ProductCatalog() {
     [products, searchTerm]
   );
 
-  const handleAddToCart = (product: Product) => {
-    console.log("Add to cart:", product.title);
-  };
+  // SEMENTARA, hapus di 4B
+  console.log(
+    "cart:",
+    items.map((item) => `${item.product.title} x${item.quantity}`)
+  );
 
   if (isLoading) return <ProductSkeleton />;
   if (error) return <ErrorMessage message={error} onRetry={retry} />;
@@ -34,10 +37,12 @@ export function ProductCatalog() {
         </p>
       </div>
 
-      <ProductList
-        products={filteredProducts}
-        onAddToCart={handleAddToCart}
-      />
+      {/* SEMENTARA, hapus di 4B */}
+      <p className="text-sm font-medium">
+        Cart: {totalItems} item, {formatPrice(totalPrice)}
+      </p>
+
+      <ProductList products={filteredProducts} onAddToCart={addToCart} />
     </div>
   );
 }

@@ -22,3 +22,8 @@ export interface ProductsResponse {
   skip: number;
   limit: number;
 }
+
+export interface CartItem {
+  product: Product;
+  quantity: number;
+}
