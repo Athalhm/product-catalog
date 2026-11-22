@@ -3,23 +3,18 @@
 import { useProducts } from "@/hooks/useProducts";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { ProductSkeleton } from "@/components/common/ProductSkeleton";
+import { ProductList } from "@/components/product/ProductList";
+import type { Product } from "@/types/product";
 
-export function ProductCatalogue() {
+export function ProductCatalog() {
   const { products, isLoading, error, retry } = useProducts();
+
+  const handleAddToCart = (product: Product) => {
+    console.log("Add to cart:", product.title);
+  };
 
   if (isLoading) return <ProductSkeleton />;
   if (error) return <ErrorMessage message={error} onRetry={retry} />;
 
-  return (
-    <div>
-      <p className="mb-4 text-sm text-muted-foreground">
-        Total produk dimuat: {products.length}
-      </p>
-      <ul className="space-y-1">
-        {products.map((product) => (
-          <li key={product.id}>{product.title}</li>
-        ))}
-      </ul>
-    </div>
-  );
+  return <ProductList products={products} onAddToCart={handleAddToCart} />;
 }
