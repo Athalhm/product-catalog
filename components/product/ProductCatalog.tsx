@@ -16,10 +16,11 @@ export function ProductCatalog() {
   const [page, setPage] = useState(1);
   const debouncedSearch = useDebounce(searchTerm.trim(), 400);
 
-  const { products, total, isLoading, error, retry } = useProducts({
-    search: debouncedSearch,
-    page,
-  });
+  const { products, total, isLoading, isPlaceholderData, error, retry } =
+    useProducts({
+      search: debouncedSearch,
+      page,
+    });
   const addToCart = useCartStore((state) => state.addToCart);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -42,7 +43,15 @@ export function ProductCatalog() {
 
     return (
       <>
-        <ProductList products={products} onAddToCart={addToCart} />
+        <div
+          className={
+            isPlaceholderData
+              ? "opacity-50 transition-opacity"
+              : "transition-opacity"
+          }
+        >
+          <ProductList products={products} onAddToCart={addToCart} />
+        </div>
         <PaginationControls
           currentPage={page}
           totalPages={totalPages}
@@ -56,7 +65,7 @@ export function ProductCatalog() {
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <SearchBar value={searchTerm} onChange={handleSearchChange} />
-        {!isLoading && !error && total > 0 && (
+        {!isLoading && !error && !isPlaceholderData && total > 0 && (
           <p className="text-sm text-muted-foreground">
             Showing {rangeStart}-{rangeEnd} of {total} products
           </p>

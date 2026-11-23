@@ -1,58 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { fetchProducts } from "@/lib/api";
-import type { Product } from "@/types/product";
 
-interface UseProductsOptions { search: string, page: number }
-
-interface LoadedResult { key: string, products: Product[], total: number }
-
-interface FailedResult { key: string, message: string }
+interface UseProductsOptions {
+  search: string;
+  page: number;
+}
 
 export function useProducts({ search, page }: UseProductsOptions) {
-  const [reloadKey, setReloadKey] = useState(0);
-  const [result, setResult] = useState<LoadedResult | null>(null);
-  const [failure, setFailure] = useState<FailedResult | null>(null);
+  const query = useQuery({
+    queryKey: ["products", { search, page }],
+    queryFn: ({ signal }) => fetchProducts({ search, page, signal }),
+    placeholderData: keepPreviousData,
+  });
 
-  const requestKey = `${search}|${page}|${reloadKey}`;
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function load() {
-      try {
-        const data = await fetchProducts({
-          search,
-          page,
-          signal: controller.signal,
-        });
-        setResult({ key: requestKey, ...data });
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") return;
-        setFailure({
-          key: requestKey,
-          message:
-            err instanceof Error ? err.message : "Terjadi kesalahan tak terduga.",
-        });
-      }
-    }
-
-    load();
-
-    return () => controller.abort();
-  }, [search, page, requestKey]);
-
-  const retry = () => setReloadKey((key) => key + 1);
-
-  const hasCurrentResult = result !== null && result.key === requestKey;
-  const hasCurrentFailure = failure !== null && failure.key === requestKey;
+  const retry = () => {
+    void query.refetch();
+  };
 
   return {
-    products: hasCurrentResult ? result.products : [],
-    total: hasCurrentResult ? result.total : 0,
-    isLoading: !hasCurrentResult && !hasCurrentFailure,
-    error: hasCurrentFailure ? failure.message : null,
+    products: query.data?.products ?? [],
+    total: query.data?.total ?? 0,
+    isLoading: query.isPending,
+    isPlaceholderData: query.isPlaceholderData,
+    error: query.error ? query.error.message : null,
     retry,
   };
 }
