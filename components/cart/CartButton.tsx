@@ -6,11 +6,11 @@ import { Cart } from "@/components/cart/Cart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { useCart } from "@/context/CartContext";
+import { selectTotalItems, useCartStore } from "@/stores/cartStore";
 
 export function CartButton() {
   const [isOpen, setIsOpen] = useState(false);
-  const { totalItems } = useCart();
+  const totalItems = useCartStore(selectTotalItems);
 
   return (
     <>

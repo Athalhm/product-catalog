@@ -5,18 +5,20 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useCart } from "@/context/CartContext";
 import { formatPrice } from "@/lib/utils";
+import {
+  selectTotalItems,
+  selectTotalPrice,
+  useCartStore,
+} from "@/stores/cartStore";
 
 export function Cart() {
-  const {
-    items,
-    totalItems,
-    totalPrice,
-    increaseQuantity,
-    decreaseQuantity,
-    removeFromCart,
-  } = useCart();
+  const items = useCartStore((state) => state.items);
+  const totalItems = useCartStore(selectTotalItems);
+  const totalPrice = useCartStore(selectTotalPrice);
+  const increaseQuantity = useCartStore((state) => state.increaseQuantity);
+  const decreaseQuantity = useCartStore((state) => state.decreaseQuantity);
+  const removeFromCart = useCartStore((state) => state.removeFromCart);
 
   return (
     <>

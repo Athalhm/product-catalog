@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useProducts } from "@/hooks/useProducts";
 import { useDebounce } from "@/hooks/useDebounce";
-import { useCart } from "@/context/CartContext";
+import { useCartStore } from "@/stores/cartStore";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { PaginationControls } from "@/components/common/PaginationControls";
 import { ProductSkeleton } from "@/components/common/ProductSkeleton";
@@ -20,7 +20,7 @@ export function ProductCatalog() {
     search: debouncedSearch,
     page,
   });
-  const { addToCart } = useCart();
+  const addToCart = useCartStore((state) => state.addToCart);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const rangeStart = (page - 1) * PAGE_SIZE + 1;
