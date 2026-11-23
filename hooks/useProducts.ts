@@ -1,43 +1,58 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { fetchProducts } from "@/lib/api";
 import type { Product } from "@/types/product";
 
-export function useProducts() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+interface UseProductsOptions { search: string, page: number }
+
+interface LoadedResult { key: string, products: Product[], total: number }
+
+interface FailedResult { key: string, message: string }
+
+export function useProducts({ search, page }: UseProductsOptions) {
   const [reloadKey, setReloadKey] = useState(0);
+  const [result, setResult] = useState<LoadedResult | null>(null);
+  const [failure, setFailure] = useState<FailedResult | null>(null);
+
+  const requestKey = `${search}|${page}|${reloadKey}`;
 
   useEffect(() => {
     const controller = new AbortController();
 
     async function load() {
       try {
-        const data = await fetchProducts(controller.signal);
-        setProducts(data);
+        const data = await fetchProducts({
+          search,
+          page,
+          signal: controller.signal,
+        });
+        setResult({ key: requestKey, ...data });
       } catch (err) {
-        // Request yang sengaja dibatalkan bukan error sungguhan
         if (err instanceof DOMException && err.name === "AbortError") return;
-        setError(
-          err instanceof Error ? err.message : "Terjadi kesalahan tak terduga."
-        );
-      } finally {
-        if (!controller.signal.aborted) setIsLoading(false);
+        setFailure({
+          key: requestKey,
+          message:
+            err instanceof Error ? err.message : "Terjadi kesalahan tak terduga.",
+        });
       }
     }
 
     load();
 
     return () => controller.abort();
-  }, [reloadKey]);
+  }, [search, page, requestKey]);
 
-  const retry = useCallback(() => {
-    setIsLoading(true);
-    setError(null);
-    setReloadKey((key) => key + 1);
-  }, []);
+  const retry = () => setReloadKey((key) => key + 1);
 
-  return { products, isLoading, error, retry };
+  const hasCurrentResult = result !== null && result.key === requestKey;
+  const hasCurrentFailure = failure !== null && failure.key === requestKey;
+
+  return {
+    products: hasCurrentResult ? result.products : [],
+    total: hasCurrentResult ? result.total : 0,
+    isLoading: !hasCurrentResult && !hasCurrentFailure,
+    error: hasCurrentFailure ? failure.message : null,
+    retry,
+  };
 }

@@ -1,27 +1,36 @@
-import type { Product, ProductsResponse } from "@/types/product";
+import type { ProductsPage, ProductsResponse } from "@/types/product";
 
 const BASE_URL = "https://dummyjson.com";
 
-export async function fetchProducts(signal?: AbortSignal): Promise<Product[]> {
-  const response = await fetch(`${BASE_URL}/products?limit=0`, { signal });
+export const PAGE_SIZE = 10;
+
+interface FetchProductsParams {
+  search?: string;
+  page?: number;
+  signal?: AbortSignal;
+}
+
+export async function fetchProducts({ search = "", page = 1, signal,}: FetchProductsParams = {}): Promise<ProductsPage> {
+  const keyword = search.trim();
+  const endpoint = keyword === "" ? "/products" : "/products/search";
+
+  const params = new URLSearchParams({
+    limit: String(PAGE_SIZE),
+    skip: String((page - 1) * PAGE_SIZE),
+  });
+
+  if (keyword !== "") {
+    params.set("q", keyword);
+  }
+
+  const response = await fetch(`${BASE_URL}${endpoint}?${params.toString()}`, {
+    signal,
+  });
 
   if (!response.ok) {
     throw new Error(`Gagal mengambil produk (status ${response.status}).`);
   }
 
   const data: ProductsResponse = await response.json();
-  return data.products;
+  return { products: data.products, total: data.total };
 }
-
-//latihan fetch product by id
-
-/* export async function fetchProductById(id: number): Promise<Product> {
-	const response = await fetch(`${BASE_URL}/products/${id}`);
-
-		if (!response.ok) {
-			throw new Error(`Gagal mengambil produk (status ${response.status}).`);
-    }
-
-  const data: Product = await response.json();
-  return data;
-} */
