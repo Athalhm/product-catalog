@@ -1,3 +1,5 @@
+"use client";
+
 import { CartItem } from "@/components/cart/CartItem";
 import {
   SheetDescription,
@@ -44,7 +46,17 @@ export function Cart() {
               onIncrease={increaseQuantity}
               onDecrease={decreaseQuantity}
               onRemove={removeFromCart}
-            />
+            >
+              <CartItem.Image />
+              <CartItem.Content>
+                <CartItem.Title />
+                <CartItem.Price />
+                <div className="mt-auto flex items-center justify-between">
+                  <CartItem.Quantity />
+                  <CartItem.RemoveButton />
+                </div>
+              </CartItem.Content>
+            </CartItem>
           ))}
         </ul>
       )}
