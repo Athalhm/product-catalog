@@ -1,6 +1,6 @@
 # Product Catalog
 
-A responsive product catalog built as a frontend intern mini project. The app fetches products from a public API, displays them as reusable cards, supports product search, and includes a working shopping cart.
+A responsive product catalog built as a frontend intern mini project. The app fetches products from a public API with server-side search and pagination, displays them as reusable cards, and includes a working shopping cart.
 
 **Live demo:** https://product-catalog-seven-xi.vercel.app
 **Repository:** https://github.com/Athalhm/product-catalog.git
@@ -28,6 +28,8 @@ A responsive product catalog built as a frontend intern mini project. The app fe
 | Language | [TypeScript](https://www.typescriptlang.org/) (strict mode) |
 | Styling | [Tailwind CSS](https://tailwindcss.com/) |
 | Component library | [shadcn/ui](https://ui.shadcn.com/) (Card, Badge, Button, Input, Sheet, Skeleton, Alert) |
+| Server state (fetching and caching) | [TanStack Query](https://tanstack.com/query) (React Query) |
+| Client state (cart) | [Zustand](https://zustand.docs.pmnd.rs/) |
 | Icons | [lucide-react](https://lucide.dev/) |
 | Package manager | [pnpm](https://pnpm.io/) |
 | Deployment | [Vercel](https://vercel.com/) |
@@ -41,14 +43,15 @@ The app uses the public [DummyJSON Products API](https://dummyjson.com/docs/prod
 | Item | Value |
 |---|---|
 | Base URL | `https://dummyjson.com` |
-| Endpoint used | `GET /products?limit=0` |
+| List endpoint | `GET /products?limit=10&skip=N` |
+| Search endpoint | `GET /products/search?q=KEYWORD&limit=10&skip=N` |
 | Response shape | `{ products: Product[], total, skip, limit }` |
 
-By default the API returns only 30 products per request. The app passes `limit=0` so that all products are returned in a single request. This makes local search complete, because every product is already in memory.
+Pagination is done by the server. The app requests 10 products per page and calculates `skip` as `(page - 1) * 10`. The `total` field in the response is used to calculate the number of pages.
 
-Product fields used by the app:
+Search is also done by the server through the search endpoint. The API decides which fields are matched, so a keyword can return products whose name does not contain it.
 
-`id`, `title`, `price`, `category`, `rating`, `stock`, `thumbnail`, and others defined in `types/product.ts`.
+Product fields used by the app include `id`, `title`, `price`, `category`, `rating`, `stock`, and `thumbnail`. The full type is defined in `types/product.ts`.
 
 Product images are served from `cdn.dummyjson.com`, which is registered in `next.config.ts` under `images.remotePatterns`.
 
@@ -56,11 +59,13 @@ Product images are served from `cdn.dummyjson.com`, which is registered in `next
 
 ## Main Features
 
-**Fetching data**
-- Products are fetched from the API when the application loads.
-- A skeleton grid is shown while data is loading.
-- A descriptive error message with a "Try again" button is shown if the request fails.
-- Request cancellation is handled with `AbortController` to avoid updating state after unmount.
+**Fetching data (TanStack Query)**
+- Products are fetched when the application loads.
+- A skeleton grid is shown during the first load.
+- When the user changes page or search term, the previous results stay visible (dimmed) while the new ones load, so the layout does not flash.
+- Results are cached by page and search term. Going back to a page that was already loaded is instant and does not send a new request while the data is still fresh (1 minute).
+- A failed request is retried once automatically. If it still fails, a descriptive error message with a "Try again" button is shown.
+- In-flight requests are cancelled automatically when the query changes.
 
 **Product cards**
 - Reusable `ProductCard` showing image, name, price, category, rating, stock status, and an "Add to Cart" button.
@@ -69,13 +74,19 @@ Product images are served from `cdn.dummyjson.com`, which is registered in `next
 - Responsive grid: 1 column on mobile, 2 on small tablets, 3 on laptops, 4 on large screens.
 
 **Search**
-- Search by product name, case-insensitive, with surrounding spaces ignored.
-- The visible list updates as the user types.
+- Server-side search using the API search endpoint.
+- Requests are debounced by 400 ms, so a request is sent only after the user stops typing.
 - A clear (X) button removes the search text.
 - A "No products found" message is shown when nothing matches.
-- A result counter shows how many products match.
+- A result counter shows the range of products on the current page.
 
-**Shopping cart**
+**Pagination**
+- 10 products per page.
+- Previous and Next buttons, plus a compact list of page numbers with ellipsis (for example `1 ... 9 10 11 ... 20`).
+- Previous and Next are disabled at the first and last page.
+- Changing the search term resets the page to 1, and changing page scrolls back to the top.
+
+**Shopping cart (Zustand)**
 - Add products to the cart. Adding the same product again increases its quantity instead of creating a duplicate row.
 - A badge on the cart button shows the total number of items.
 - The cart opens in a side panel showing image, name, unit price, quantity, and line subtotal for each item.
@@ -84,6 +95,7 @@ Product images are served from `cdn.dummyjson.com`, which is registered in `next
 - Remove an item with the trash button.
 - The total price is calculated automatically.
 - An empty-cart message is shown when there are no items.
+- The cart is kept while the user changes page or search term.
 
 ---
 
@@ -128,33 +140,36 @@ No environment variables are needed to run the project.
 ```
 product-catalog/
 ├── app/
-│   ├── layout.tsx            Root layout, mounts CartProvider
-│   ├── page.tsx              Home page, assembles header and catalog
+│   ├── layout.tsx              Root layout, mounts Providers
+│   ├── providers.tsx           TanStack Query provider (QueryClient)
+│   ├── page.tsx                Home page, assembles header and catalog
 │   └── globals.css
 ├── components/
-│   ├── ui/                   shadcn/ui components (managed by the shadcn CLI)
+│   ├── ui/                     shadcn/ui components (managed by the shadcn CLI)
 │   ├── product/
-│   │   ├── ProductCatalog.tsx  Container: data, search state, view selection
-│   │   ├── ProductList.tsx     Responsive grid and empty state
-│   │   ├── ProductCard.tsx     Single product card
-│   │   └── SearchBar.tsx       Controlled search input with clear button
+│   │   ├── ProductCatalog.tsx    Container: search term, page, view selection
+│   │   ├── ProductList.tsx       Responsive grid and empty state
+│   │   ├── ProductCard.tsx       Single product card
+│   │   └── SearchBar.tsx         Controlled search input with clear button
 │   ├── cart/
-│   │   ├── CartButton.tsx      Header button, item badge, opens the cart panel
-│   │   ├── Cart.tsx            Cart panel content and total
-│   │   └── CartItem.tsx        Single cart row with quantity controls
+│   │   ├── CartButton.tsx        Header button, item badge, opens the cart panel
+│   │   ├── Cart.tsx              Cart panel content and total
+│   │   └── CartItem.tsx          Compound component (CartItem.Image, Title, ...)
 │   └── common/
-│       ├── ProductSkeleton.tsx Loading state
-│       └── ErrorMessage.tsx    Error state with retry
-├── context/
-│   └── CartContext.tsx       Cart state, actions, and useCart hook
+│       ├── PaginationControls.tsx  Previous, page numbers, Next
+│       ├── ProductSkeleton.tsx     Loading state
+│       └── ErrorMessage.tsx        Error state with retry
+├── stores/
+│   └── cartStore.ts            Zustand cart store and selectors
 ├── hooks/
-│   └── useProducts.ts        Fetching logic: products, loading, error, retry
+│   ├── useProducts.ts          useQuery wrapper for products
+│   └── useDebounce.ts          Debounce for the search term
 ├── lib/
-│   ├── api.ts                API requests
-│   └── utils.ts              cn helper, formatPrice, getStockStatus, filterProductsByName
+│   ├── api.ts                  API requests and PAGE_SIZE
+│   └── utils.ts                cn helper, formatPrice, getStockStatus, getPageNumbers
 ├── types/
-│   └── product.ts            Product, ProductsResponse, CartItem
-├── next.config.ts            Remote image configuration
+│   └── product.ts              Product, ProductsResponse, ProductsPage, CartItem
+├── next.config.ts              Remote image configuration
 └── README.md
 ```
 
@@ -166,35 +181,72 @@ product-catalog/
 
 ```
 app/layout.tsx
- └── CartProvider                 (cart state, shared by the whole app)
+ └── Providers (TanStack Query)
       └── app/page.tsx
-           ├── CartButton → Sheet → Cart → CartItem (per item)
+           ├── CartButton → Sheet → Cart → CartItem (compound, per item)
            └── ProductCatalog
-                ├── ProductSkeleton   (while loading)
-                ├── ErrorMessage      (on error)
-                └── SearchBar + ProductList → ProductCard (per product)
+                ├── SearchBar
+                ├── ProductSkeleton      (first load)
+                ├── ErrorMessage         (on error)
+                ├── ProductList → ProductCard (per product)
+                └── PaginationControls
 ```
 
-### Data flow
+### Two kinds of state, two tools
 
-- **Props flow down.** `ProductCatalog` passes the filtered products and the `onAddToCart` callback to `ProductList`, which passes them to each `ProductCard`.
-- **Events flow up through callbacks.** Clicking "Add to Cart" calls `onAddToCart(product)`, which runs the cart logic in the parent. `ProductCard` itself does not know how the cart works, which keeps it reusable.
-- **Shared state flows through Context.** The cart is needed by several unrelated components (product cards, the header badge, and the cart panel), so it lives in `CartContext` instead of being passed through many layers of props.
+The app separates **server state** from **client state**, because they have different problems.
 
-### State management approach
+| | Server state | Client state |
+|---|---|---|
+| Example | Product list from the API | Cart items |
+| Owned by | The server (the app only holds a copy) | The app |
+| Can become stale or fail | Yes | No |
+| Tool | TanStack Query | Zustand |
+
+### Server state with TanStack Query
+
+`useProducts` wraps `useQuery`. The query key is `["products", { search, page }]`, so every combination of search term and page has its own cache entry. The query function is `fetchProducts` from `lib/api.ts`, which only performs the request and throws on a failed response.
+
+What the library handles instead of hand-written code:
+
+| Concern | How it is handled |
+|---|---|
+| Loading and error status | `isPending` and `error` |
+| Re-fetching when search or page changes | The query key changes |
+| Cancelling outdated requests | The `signal` passed to the query function |
+| Stale results overwriting newer ones | Query keys |
+| Retrying failed requests | `retry: 1` |
+| Avoiding repeated requests | Cache with `staleTime` of 1 minute |
+| Keeping the previous page visible while loading | `placeholderData: keepPreviousData` |
+
+The `QueryClient` is created inside `useState` in `app/providers.tsx`, so each server render and each browser session gets its own cache instead of sharing one module-level instance.
+
+### Client state with Zustand
+
+The cart lives in `stores/cartStore.ts`. The store holds the `items` array and four actions: `addToCart`, `increaseQuantity`, `decreaseQuantity`, and `removeFromCart`. No provider is needed.
+
+- **Selectors.** Components subscribe to small slices of the store, for example `useCartStore(selectTotalItems)`. A component re-renders only when the slice it selected changes.
+- **Derived data is calculated, not stored.** `selectTotalItems` and `selectTotalPrice` compute their values from `items` with `reduce`.
+- **Immutable updates.** Actions use `map`, `filter`, and the spread operator to create new arrays and objects. State is never mutated directly.
+- **Quantity rules live in one place.** A single function clamps the quantity between 1 and the product stock. The disabled buttons in the UI are only visual feedback on top of that rule.
+
+### Other state
 
 | State | Where it lives | Why |
 |---|---|---|
-| `products`, `isLoading`, `error` | `useProducts` hook, used by `ProductCatalog` | Only the catalog needs the product list. The hook hides all fetching details. |
-| `searchTerm` | `ProductCatalog` (`useState`) | The search bar and the list both depend on it, so the state is lifted to their common parent. `SearchBar` is a controlled component. |
-| Cart `items` | `CartProvider` (`useState`) | Needed by many components across the tree. |
+| Search term and current page | `ProductCatalog` (`useState`) | They are used by the search bar, the query, and the pagination, and are part of the query key. |
+| Debounced search term | `useDebounce` hook | Only the debounced value is sent to the API. |
 | Cart panel open or closed | `CartButton` (`useState`) | Only this component cares, so it stays local. |
 
-**Derived data is calculated, not stored.** The filtered product list, the cart total price, the cart item count, the stock label, and the line subtotals are all computed from existing state. This avoids keeping several pieces of state in sync by hand.
+### Data flow
 
-**Immutable updates.** Cart updates use `map`, `filter`, and the spread operator to create new arrays and objects. State is never mutated directly.
+- **Props flow down.** `ProductCatalog` passes products and the `onAddToCart` callback to `ProductList`, then to each `ProductCard`.
+- **Events flow up through callbacks.** Clicking "Add to Cart" calls `onAddToCart(product)`. `ProductCard` does not know how the cart works, which keeps it reusable.
+- **Shared client state lives in a store.** The product cards, the header badge, and the cart panel all read the same cart from Zustand.
 
-**Quantity rules live in one place.** A single function in `CartContext` clamps quantities between 1 and the product stock. The disabled buttons in the UI are only visual feedback on top of that rule.
+### Compound component: `CartItem`
+
+`CartItem` is a compound component. The root receives the item and the cart actions once and shares them through an internal context. The sub-components (`CartItem.Image`, `CartItem.Content`, `CartItem.Title`, `CartItem.Price`, `CartItem.Quantity`, `CartItem.RemoveButton`) read what they need from that context. `Cart.tsx` decides how the parts are arranged, so a different layout does not need new props or a new component. Using a sub-component outside `CartItem` throws a clear error.
 
 ---
 
@@ -202,12 +254,13 @@ app/layout.tsx
 
 - **The cart is not persisted.** It is stored in memory only, so it is cleared when the page is refreshed.
 - **Prices in the cart are snapshots.** Each cart item stores the product as it was when it was added, so later changes in the API data are not reflected.
-- **Search only matches the product name.** Category, brand, and description are not searched.
-- **Search is local.** It filters products already loaded in memory. This works because all products are fetched at once, but it would not scale to a very large catalog.
-- **All products are loaded in one request.** There is no pagination or infinite scroll, so many cards are rendered at once.
+- **Search relies on the API's matching rules.** Results can include products whose name does not contain the keyword, and matching cannot be customized.
+- **Page and search term are not in the URL.** They are stored in component state, so refreshing returns to page 1 and a specific page or search cannot be bookmarked or shared.
+- **Data is fetched on the client.** The first paint shows a skeleton. Prefetching on the server would remove it at the cost of more setup.
+- **The Zustand store is a module-level singleton.** This is fine for browser-only state like this cart, but data specific to a user would need a per-request store if used during server rendering.
 - **No checkout flow.** The cart ends at the total price.
 - **Currency is assumed to be USD.** The API does not specify a currency.
 - **Floating-point arithmetic.** Totals are calculated with JavaScript numbers and rounded only for display. A real store would store prices in the smallest currency unit (for example, cents).
-- **Stock is not reserved.** Stock limits are checked against the data fetched on page load.
+- **Stock is not reserved.** Stock limits are checked against the data fetched when the page loaded.
 - **No automated tests.** The app was tested manually.
 - **Limited accessibility testing.** Buttons have labels, but no full accessibility audit was done.
